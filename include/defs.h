@@ -15,8 +15,11 @@ typedef size_t usize;
 
 typedef enum {
     RC_OK,
-    RC_INIT_FAILED,
+    RC_ALREADY_OPEN,
+    RC_OPEN_FAILED,
     RC_PROBE_START,
     RC_NOT_INIT,
+    RC_CLOSE_FAILED,
+    RC_INVALID_OPT,
 } RC;
 #endif // INCLUDE_DEFS_H

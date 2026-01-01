@@ -11,4 +11,6 @@ RC probe_init(void);
 RC probe_start(u16 *buf, usize sz);
 RC probe_fetch(u16 **buf, usize *sz);
 
+void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc);
+
 #endif // INCLUDE_PROBE_H

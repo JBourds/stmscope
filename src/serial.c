@@ -17,7 +17,7 @@ static RC uart2_init(void) {
     huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
     huart2.Init.OverSampling = UART_OVERSAMPLING_16;
     if (HAL_UART_Init(&huart2) != HAL_OK) {
-        return RC_INIT_FAILED;
+        return RC_OPEN_FAILED;
     }
     return RC_OK;
 }
