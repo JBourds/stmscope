@@ -15,7 +15,7 @@ dallies into the STM32 CubeIDE for its codegen capabilities.
 
 # Serial Monitor
 
-`pio device monitor`
+`pio device monitor --raw` (raw flag necessary to get ANSI control sequences)
 
 # Debugging with GDB
 
