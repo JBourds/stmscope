@@ -5,9 +5,9 @@
 #include "defs.h"
 #include "main.h"
 
+#include "serial.h"
 #include "stm32f4xx_hal.h"
 
-UART_HandleTypeDef huart2;
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 TIM_HandleTypeDef htim3;
@@ -28,12 +28,9 @@ volatile u16 ADC_SAMPLES[2 * SZ];
 
 static void sysclock_init(void);
 static void gpio_init(void);
-static void uart2_init(void);
 static void adc_init(void);
 static void dma_init(void);
 static void handle_error(void);
-
-int _write(int file, char *ptr, int len);
 
 double adc_to_voltage(u16 val) { return VOLTAGE_MAX * val / ADC_MAX; }
 
@@ -43,7 +40,9 @@ int main(void) {
     HAL_Init();
     sysclock_init();
     gpio_init();
-    uart2_init();
+    if (serial_init() != RC_OK) {
+        handle_error();
+    }
     dma_init();
     adc_init();
     setbuf(stdout, NULL);
@@ -147,20 +146,6 @@ static void sysclock_init(void) {
     }
 }
 
-static void uart2_init(void) {
-    huart2.Instance = USART2;
-    huart2.Init.BaudRate = 115200;
-    huart2.Init.WordLength = UART_WORDLENGTH_8B;
-    huart2.Init.StopBits = UART_STOPBITS_1;
-    huart2.Init.Parity = UART_PARITY_NONE;
-    huart2.Init.Mode = UART_MODE_TX_RX;
-    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-    if (HAL_UART_Init(&huart2) != HAL_OK) {
-        handle_error();
-    }
-}
-
 static void gpio_init(void) {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -183,11 +168,6 @@ static void gpio_init(void) {
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
-}
-
-int _write(int file, char *ptr, int len) {
-    HAL_UART_Transmit(&huart2, (uint8_t *)ptr, len, HAL_MAX_DELAY);
-    return len;
 }
 
 static void dma_init(void) {

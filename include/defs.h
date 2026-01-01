@@ -12,4 +12,10 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 typedef size_t usize;
+
+typedef enum {
+    RC_OK,
+    RC_INIT_FAILED,
+    RC_PROBE_START,
+} RC;
 #endif // INCLUDE_DEFS_H
