@@ -22,6 +22,7 @@ static struct {
 } STATE;
 
 volatile u16 ADC_SAMPLES[SZ];
+volatile double CONVERTED[SZ];
 
 static void sysclock_init(void);
 static void gpio_init(void);
@@ -68,11 +69,6 @@ int main(void) {
         printf("error adding channel 1\n");
         handle_error();
     }
-    rc = display_add_channel(display, "Channel 2", &ch2_hdl);
-    if (rc != RC_OK) {
-        printf("error adding channel 2\n");
-        handle_error();
-    }
     rc = display_set_x(display, 80);
     if (rc != RC_OK) {
         printf("error setting x dimension on display\n");
@@ -103,12 +99,11 @@ int main(void) {
             }
             u16 avg = sum / SZ;
             double avg_voltage = adc_to_voltage(avg);
-            printf("avg voltage: %lfV\n", avg_voltage);
+            display_write(display, ch1_hdl, avg_voltage);
         } else {
             printf("not yet\n");
         }
         HAL_Delay(500);
-        display_redraw(display);
     }
 }
 

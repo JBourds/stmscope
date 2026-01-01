@@ -1,4 +1,5 @@
 #include "display.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -29,6 +30,7 @@ const char *COLORS[CHANNEL_COUNT_MAX] = {
 };
 
 // shared functions
+static double clamp(double value, double range);
 static RC add_channel(Channel *channels, usize *nchannels, const char *name,
                       ChannelHandle *hdl);
 static RC remove_channel(Channel *channels, usize *nchannels,
@@ -45,6 +47,7 @@ static RC terminal_remove_channel(TerminalDisplay *term, ChannelHandle hdl);
 static RC terminal_set_scale(TerminalDisplay *file, double scale);
 static RC terminal_set_y(TerminalDisplay *term, usize chars_tall);
 static RC terminal_set_x(TerminalDisplay *term, usize chars_wide);
+static RC terminal_position_cursor(TerminalDisplay *term, usize row, usize col);
 static RC terminal_writev(TerminalDisplay *term, ChannelHandle hdl,
                           double *values, usize sz);
 static RC terminal_write(TerminalDisplay *term, ChannelHandle hdl,
@@ -211,6 +214,15 @@ RC display_write(DisplayFile *file, ChannelHandle hdl, double value) {
 }
 
 // common helper functions
+double clamp(double value, double range) {
+    if (value < 0) {
+        range *= -1;
+        return value < range ? range : value;
+    } else {
+        return value > range ? range : value;
+    }
+}
+
 RC add_channel(Channel *channels, usize *nchannels, const char *name,
                ChannelHandle *hdl) {
     _Bool found_opening = 0;
@@ -341,7 +353,32 @@ RC terminal_writev(TerminalDisplay *term, ChannelHandle hdl, double *values,
                    usize sz) {
     return RC_OK;
 }
+RC terminal_position_cursor(TerminalDisplay *term, usize row, usize col) {
+    printf("\033[%u;%uH", row, col);
+    return RC_OK;
+}
+
 RC terminal_write(TerminalDisplay *term, ChannelHandle hdl, double value) {
+    if (term->col == term->chars_wide) {
+        term->col = 1;
+        terminal_redraw(term);
+    } else {
+        ++term->col;
+    }
+
+    double clamped = clamp(value, term->scale);
+    _Bool is_negative = clamped < 0;
+    if (is_negative) {
+        clamped *= -1;
+    }
+    usize row_offset = round(clamped / term->binwidth);
+    usize xaxis_row = (term->chars_tall - 1) / 2;
+    // (0,0) is top left
+    usize row = is_negative ? xaxis_row + row_offset : xaxis_row - row_offset;
+    terminal_position_cursor(term, row, term->col);
+    printf("%s*", COLORS[hdl]);
+    term->channels[hdl].last_value = value;
+
     return RC_OK;
 }
 
