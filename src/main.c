@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -79,9 +78,14 @@ int main(void) {
         printf("error setting x dimension on display\n");
         handle_error();
     }
-    rc = display_set_y(display, 80);
+    rc = display_set_y(display, 25);
     if (rc != RC_OK) {
         printf("error setting y dimension on display\n");
+        handle_error();
+    }
+    rc = display_set_scale(display, VOLTAGE_MAX);
+    if (rc != RC_OK) {
+        printf("error setting display scale\n");
         handle_error();
     }
     rc = display_redraw(display);

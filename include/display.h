@@ -27,6 +27,7 @@ typedef enum {
 typedef struct {
     _Bool active;
     char name[CHANNEL_NAME_MAX];
+    double last_value;
 } Channel;
 
 typedef struct {
@@ -34,6 +35,8 @@ typedef struct {
     usize nchannels;
     usize chars_wide;
     usize chars_tall;
+    double scale;
+    double binwidth;
 } TerminalDisplay;
 
 typedef struct {
@@ -63,6 +66,7 @@ RC display_redraw(DisplayFile *file);
 
 RC display_set_y(DisplayFile *file, usize dim);
 RC display_set_x(DisplayFile *file, usize dim);
+RC display_set_scale(DisplayFile *file, double scale);
 
 RC display_writev(DisplayFile *file, ChannelHandle hdl, double *values,
                   usize sz);
