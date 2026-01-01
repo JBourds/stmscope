@@ -298,8 +298,12 @@ static RC terminal_set_x(TerminalDisplay *term, usize chars_wide) {
     return RC_OK;
 }
 RC terminal_writev(TerminalDisplay *term, ChannelHandle hdl, double *values,
-                   usize sz);
-RC terminal_write(TerminalDisplay *term, ChannelHandle hdl, double value);
+                   usize sz) {
+    return RC_OK;
+}
+RC terminal_write(TerminalDisplay *term, ChannelHandle hdl, double value) {
+    return RC_OK;
+}
 
 // lcd implementations
 RC lcd_open(LcdDisplay *lcd, DisplayFile **file) {
