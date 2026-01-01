@@ -206,6 +206,8 @@ RC add_channel(Channel *channels, usize *nchannels, const char *name,
     if (buf[i] != '\0') {
         return RC_BUF_LENGTH;
     }
+    *hdl = ch;
+    channels[ch].active = 1;
     // if everything succeeded and we added a new channel, then increment val
     if (!found_opening) {
         ++(*nchannels);
