@@ -21,7 +21,7 @@ static volatile struct {
 
 RC probe_fetch(u16 **buf, usize *sz) {
     if (STATE.buf == NULL) {
-        return RC_NOT_INIT;
+        return RC_NOT_OPEN;
     }
     *buf = (u16 *)STATE.buf + STATE.sz_per_half;
     return RC_OK;
@@ -42,7 +42,7 @@ RC probe_start(u16 *buf, usize sz) {
     // double buffered but uses a flat buffer, `sz` is size per buffer
     STATE.sz_per_half = sz >> 1;
     if (HAL_ADC_Start_DMA(&hadc1, (u32 *)buf, sz) != HAL_OK) {
-        return RC_PROBE_START;
+        return RC_START_FAILED;
     }
     return RC_OK;
 }

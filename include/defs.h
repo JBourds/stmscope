@@ -17,9 +17,14 @@ typedef enum {
     RC_OK,
     RC_ALREADY_OPEN,
     RC_OPEN_FAILED,
-    RC_PROBE_START,
-    RC_NOT_INIT,
+    RC_START_FAILED,
+    RC_NOT_OPEN,
     RC_CLOSE_FAILED,
     RC_INVALID_OPT,
+    RC_CHANNEL_COUNT,
+    RC_BUF_LENGTH,
 } RC;
+
+const char *rcstr(RC rc);
+
 #endif // INCLUDE_DEFS_H

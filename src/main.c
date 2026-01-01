@@ -32,20 +32,25 @@ double adc_to_voltage(u16 val) { return VOLTAGE_MAX * val / ADC_MAX; }
 static void toggle_led() { HAL_GPIO_TogglePin(LD2_GPIO_Port, LED_PIN); }
 
 int main(void) {
+    RC rc;
     HAL_Init();
     sysclock_init();
     gpio_init();
+
     setbuf(stdout, NULL);
     if (serial_init() != RC_OK) {
         handle_error();
     }
     printf("initialized serial\n");
-    if (probe_init() != RC_OK) {
+
+    rc = probe_init();
+    if (rc != RC_OK) {
         printf("error during probe initialization\n");
         handle_error();
     }
     printf("initialized probe\n");
-    if (probe_start((u16 *)ADC_SAMPLES, SZ) != RC_OK) {
+    rc = probe_start((u16 *)ADC_SAMPLES, SZ);
+    if (rc != RC_OK) {
         printf("error during probe initialization\n");
         handle_error();
     }
