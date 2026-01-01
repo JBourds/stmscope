@@ -2,6 +2,32 @@
 #include <stdio.h>
 #include <string.h>
 
+#define CLEAR_SCREEN "\033c\n"
+
+#define RESET "\033[0m"
+#define BLACK "\033[30m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define BLUE "\033[34m"
+#define MAGENTA "\033[35m"
+#define CYAN "\033[36m"
+#define WHITE "\033[37m"
+
+#define BOLDBLACK "\033[1m\033[30m"
+#define BOLDRED "\033[1m\033[31m"
+#define BOLDGREEN "\033[1m\033[32m"
+#define BOLDYELLOW "\033[1m\033[33m"
+#define BOLDBLUE "\033[1m\033[34m"
+#define BOLDMAGENTA "\033[1m\033[35m"
+#define BOLDCYAN "\033[1m\033[36m"
+#define BOLDWHITE "\033[1m\033[37m"
+
+const char *COLORS[CHANNEL_COUNT_MAX] = {
+    BOLDGREEN,
+    BOLDYELLOW,
+};
+
 // shared functions
 static RC add_channel(Channel *channels, usize *nchannels, const char *name,
                       ChannelHandle *hdl);
@@ -247,6 +273,13 @@ RC terminal_redraw(TerminalDisplay *term) {
     if (rc != RC_OK) {
         return rc;
     }
+    // header
+    for (usize i = 0; i < term->nchannels; ++i) {
+        if (term->channels[i].active) {
+            printf("%s%s\t", COLORS[i], term->channels[i].name);
+        }
+    }
+    printf(RESET "\n");
     return RC_OK;
 }
 RC terminal_add_channel(TerminalDisplay *term, const char *name,
