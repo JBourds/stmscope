@@ -5,6 +5,7 @@
 #include "defs.h"
 #include "main.h"
 
+#include "display.h"
 #include "probe.h"
 #include "serial.h"
 #include "stm32f4xx_hal.h"
@@ -56,6 +57,39 @@ int main(void) {
     }
     printf("started probe\n");
 
+    DisplayFile *display = NULL;
+    ChannelHandle ch1_hdl, ch2_hdl;
+    rc = display_open(TERMINAL_DISPLAY, &display);
+    if (rc != RC_OK) {
+        printf("error opening display\n");
+        handle_error();
+    }
+    rc = display_add_channel(display, "Channel 1", &ch1_hdl);
+    if (rc != RC_OK) {
+        printf("error adding channel 1\n");
+        handle_error();
+    }
+    rc = display_add_channel(display, "Channel 2", &ch2_hdl);
+    if (rc != RC_OK) {
+        printf("error adding channel 2\n");
+        handle_error();
+    }
+    rc = display_set_x(display, 80);
+    if (rc != RC_OK) {
+        printf("error setting x dimension on display\n");
+        handle_error();
+    }
+    rc = display_set_y(display, 80);
+    if (rc != RC_OK) {
+        printf("error setting y dimension on display\n");
+        handle_error();
+    }
+    rc = display_redraw(display);
+    if (rc != RC_OK) {
+        printf("error drawing display\n");
+        handle_error();
+    }
+
     while (1) {
         toggle_led();
         if (STATE.dma_complete) {
@@ -70,6 +104,7 @@ int main(void) {
             printf("not yet\n");
         }
         HAL_Delay(500);
+        display_redraw(display);
     }
 }
 
