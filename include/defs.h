@@ -17,5 +17,6 @@ typedef enum {
     RC_OK,
     RC_INIT_FAILED,
     RC_PROBE_START,
+    RC_NOT_INIT,
 } RC;
 #endif // INCLUDE_DEFS_H

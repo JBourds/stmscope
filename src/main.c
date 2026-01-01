@@ -5,12 +5,9 @@
 #include "defs.h"
 #include "main.h"
 
+#include "probe.h"
 #include "serial.h"
 #include "stm32f4xx_hal.h"
-
-ADC_HandleTypeDef hadc1;
-DMA_HandleTypeDef hdma_adc1;
-TIM_HandleTypeDef htim3;
 
 #define SZ 1024
 #define VOLTAGE_MAX 3.3
@@ -18,18 +15,16 @@ TIM_HandleTypeDef htim3;
 
 #define LED_PIN GPIO_PIN_5
 
-typedef struct {
-    _Bool active_buf : 1;
+static struct {
     _Bool dma_complete : 1;
-} Flags;
+    u16 *buf;
+    usize sz;
+} STATE;
 
-volatile Flags FLAGS;
-volatile u16 ADC_SAMPLES[2 * SZ];
+volatile u16 ADC_SAMPLES[SZ];
 
 static void sysclock_init(void);
 static void gpio_init(void);
-static void adc_init(void);
-static void dma_init(void);
 static void handle_error(void);
 
 double adc_to_voltage(u16 val) { return VOLTAGE_MAX * val / ADC_MAX; }
@@ -40,22 +35,28 @@ int main(void) {
     HAL_Init();
     sysclock_init();
     gpio_init();
+    setbuf(stdout, NULL);
     if (serial_init() != RC_OK) {
         handle_error();
     }
-    dma_init();
-    adc_init();
-    setbuf(stdout, NULL);
-    printf("starting!\n");
-    HAL_ADC_Start_DMA(&hadc1, (u32 *)ADC_SAMPLES, 2 * SZ);
+    printf("initialized serial\n");
+    if (probe_init() != RC_OK) {
+        printf("error during probe initialization\n");
+        handle_error();
+    }
+    printf("initialized probe\n");
+    if (probe_start((u16 *)ADC_SAMPLES, SZ) != RC_OK) {
+        printf("error during probe initialization\n");
+        handle_error();
+    }
+    printf("started probe\n");
 
     while (1) {
         toggle_led();
-        if (FLAGS.dma_complete) {
+        if (STATE.dma_complete) {
             u64 sum = 0;
-            u16 *buf = ADC_SAMPLES + FLAGS.active_buf * SZ;
-            for (usize i = 0; i < SZ; ++i) {
-                sum += buf[i];
+            for (usize i = 0; i < SZ / 2; ++i) {
+                sum += STATE.buf[i];
             }
             u16 avg = sum / SZ;
             double avg_voltage = adc_to_voltage(avg);
@@ -170,35 +171,25 @@ static void gpio_init(void) {
     HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 }
 
-static void dma_init(void) {
-    /* DMA controller clock enable */
-    __HAL_RCC_DMA2_CLK_ENABLE();
-
-    /* Configure DMA for ADC1 */
-    hdma_adc1.Instance = DMA2_Stream0;
-    hdma_adc1.Init.Channel = DMA_CHANNEL_0;
-    hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
-    hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_adc1.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-    hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-    hdma_adc1.Init.Mode = DMA_CIRCULAR;
-    hdma_adc1.Init.Priority = DMA_PRIORITY_LOW;
-    hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-    HAL_DMA_Init(&hdma_adc1);
-
-    /* Associate the DMA handle with the ADC handle */
-    __HAL_LINKDMA(&hadc1, DMA_Handle, hdma_adc1);
-
-    /* DMA interrupt init */
-    /* DMA2_Stream0_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
-}
-
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
     if (hadc->Instance == ADC1) {
-        FLAGS.dma_complete = 1;
+        if (probe_fetch(&STATE.buf, &STATE.sz) != RC_OK) {
+            handle_error();
+        } else {
+            STATE.dma_complete = 1;
+        }
+    } else {
+        handle_error();
+    }
+}
+
+void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) {
+    if (hadc->Instance == ADC1) {
+        if (probe_fetch(&STATE.buf, &STATE.sz) != RC_OK) {
+            handle_error();
+        } else {
+            STATE.dma_complete = 1;
+        }
     } else {
         handle_error();
     }
