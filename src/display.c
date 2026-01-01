@@ -3,7 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CLEAR_SCREEN "\033c\n"
+#define YAXIS_BAR "      *"
+#define START_COL sizeof(YAXIS_BAR)
+
+#define CLEAR_SCREEN "\033c"
 
 #define RESET "\033[0m"
 #define BLACK "\033[30m"
@@ -40,6 +43,8 @@ static RC remove_channel(Channel *channels, usize *nchannels,
 static RC terminal_open(TerminalDisplay *term, DisplayFile **file);
 static RC terminal_close(TerminalDisplay *term);
 static RC terminal_clear(TerminalDisplay *term);
+static RC terminal_draw_header(TerminalDisplay *term);
+static RC terminal_draw_axis(TerminalDisplay *term);
 static RC terminal_redraw(TerminalDisplay *term);
 static RC terminal_add_channel(TerminalDisplay *term, const char *name,
                                ChannelHandle *hdl);
@@ -52,6 +57,7 @@ static RC terminal_writev(TerminalDisplay *term, ChannelHandle hdl,
                           double *values, usize sz);
 static RC terminal_write(TerminalDisplay *term, ChannelHandle hdl,
                          double value);
+static usize terminal_xaxis(TerminalDisplay *term);
 
 // lcd function declarations
 static RC lcd_open(LcdDisplay *lcd, DisplayFile **file);
@@ -284,21 +290,20 @@ RC terminal_open(TerminalDisplay *term, DisplayFile **file) {
         return RC_ALREADY_OPEN;
     }
     TERMINAL.status = DISPLAY_OPEN;
+    term->col = START_COL;
     *file = &TERMINAL;
     return RC_OK;
 }
+
 RC terminal_close(TerminalDisplay *term) { return RC_OK; }
+
 RC terminal_clear(TerminalDisplay *term) {
-    printf("\033c\n");
+    printf("\033c");
     return RC_OK;
 }
-RC terminal_redraw(TerminalDisplay *term) {
-    RC rc;
-    rc = terminal_clear(term);
-    if (rc != RC_OK) {
-        return rc;
-    }
-    // header
+
+RC terminal_draw_header(TerminalDisplay *term) {
+    terminal_position_cursor(term, 0, 0);
     for (usize i = 0; i < term->nchannels; ++i) {
         Channel *ch = &term->channels[i];
         if (ch->active) {
@@ -306,61 +311,95 @@ RC terminal_redraw(TerminalDisplay *term) {
         }
     }
     printf(RESET "\n");
+    return RC_OK;
+}
 
-    // draw axis with labels
-    usize x_axis = (term->chars_tall - 1) / 2;
-    for (usize i = 1; i < term->chars_tall; ++i) {
-        if (i == 1) {
-            printf("(%.5lfV)\n", term->scale);
-        } else if (i == x_axis) {
-            for (usize j = 0; j < term->chars_wide; ++j) {
+RC terminal_draw_axis(TerminalDisplay *term) {
+    usize xaxis_row = terminal_xaxis(term);
+    usize last_row = term->chars_tall - 1;
+    for (usize row = 1; row < term->chars_tall; ++row) {
+        if (row == 1) {
+            // top end label
+            printf("%.3lfV\n", term->scale);
+        } else if (row == last_row) {
+            // bottom end label
+            printf("-%.3lfV\n", term->scale);
+        } else if (row == xaxis_row) {
+            terminal_position_cursor(term, row, START_COL);
+            for (usize j = START_COL; j < term->chars_wide; ++j) {
                 printf("*");
             }
             printf("\n");
-        } else if (i == term->chars_tall - 1) {
-            printf("(-%.5lfV)\n", term->scale);
         } else {
-            printf("*\n");
+            printf(YAXIS_BAR "\n");
         }
     }
-
     return RC_OK;
 }
+
+RC terminal_redraw(TerminalDisplay *term) {
+    RC rc;
+    rc = terminal_clear(term);
+    if (rc != RC_OK) {
+        return rc;
+    }
+    rc = terminal_draw_header(term);
+    if (rc != RC_OK) {
+        return rc;
+    }
+    rc = terminal_draw_axis(term);
+    if (rc != RC_OK) {
+        return rc;
+    }
+    return RC_OK;
+}
+
 RC terminal_add_channel(TerminalDisplay *term, const char *name,
                         ChannelHandle *hdl) {
     return add_channel(term->channels, &term->nchannels, name, hdl);
 }
+
 RC terminal_remove_channel(TerminalDisplay *term, ChannelHandle hdl) {
     return remove_channel(term->channels, &term->nchannels, hdl);
 }
+
 RC terminal_set_scale(TerminalDisplay *term, double scale) {
     term->scale = scale;
-    const usize reserved_cols = 1;
+    const usize reserved_rows = 1;
     // given a range of [-scale, scale] and one row reserved for the header,
     // determine how much of the signal each bin falls into
-    term->binwidth = (2.0 * scale) / (term->chars_tall - reserved_cols);
+    term->binwidth = (2.0 * scale) / (term->chars_tall - reserved_rows);
     return RC_OK;
 }
+
 RC terminal_set_y(TerminalDisplay *term, usize chars_tall) {
     term->chars_tall = chars_tall;
     return RC_OK;
 }
+
 RC terminal_set_x(TerminalDisplay *term, usize chars_wide) {
     term->chars_wide = chars_wide;
     return RC_OK;
 }
+
 RC terminal_writev(TerminalDisplay *term, ChannelHandle hdl, double *values,
                    usize sz) {
     return RC_OK;
 }
+
 RC terminal_position_cursor(TerminalDisplay *term, usize row, usize col) {
     printf("\033[%u;%uH", row, col);
     return RC_OK;
 }
 
+usize terminal_xaxis(TerminalDisplay *term) {
+    // don't include header
+    return 1 + (term->chars_tall - 1) / 2;
+}
+
 RC terminal_write(TerminalDisplay *term, ChannelHandle hdl, double value) {
     if (term->col == term->chars_wide) {
-        term->col = 1;
+        term->col = START_COL;
         terminal_redraw(term);
     } else {
         ++term->col;
@@ -371,13 +410,13 @@ RC terminal_write(TerminalDisplay *term, ChannelHandle hdl, double value) {
     if (is_negative) {
         clamped *= -1;
     }
-    usize row_offset = round(clamped / term->binwidth);
-    usize xaxis_row = (term->chars_tall - 1) / 2;
     // (0,0) is top left
-    usize row = is_negative ? xaxis_row + row_offset : xaxis_row - row_offset;
+    usize row_offset = round((clamped + clamped) / term->binwidth);
+    usize row = is_negative ? row_offset : term->chars_tall - row_offset + 1;
     terminal_position_cursor(term, row, term->col);
     printf("%s*", COLORS[hdl]);
     term->channels[hdl].last_value = value;
+    terminal_draw_header(term);
 
     return RC_OK;
 }
@@ -391,17 +430,27 @@ RC lcd_open(LcdDisplay *lcd, DisplayFile **file) {
     *file = &LCD;
     return RC_OK;
 }
+
 RC lcd_close(LcdDisplay *lcd) { return RC_OK; }
+
 RC lcd_clear(LcdDisplay *lcd) { return RC_OK; }
+
 RC lcd_redraw(LcdDisplay *lcd) { return RC_OK; }
+
 RC lcd_add_channel(LcdDisplay *lcd, const char *name, ChannelHandle *hdl) {
     return RC_OK;
 }
+
 RC lcd_remove_channel(LcdDisplay *lcd, ChannelHandle hdl) { return RC_OK; }
+
 RC lcd_set_scale(LcdDisplay *lcd, double scale) { return RC_OK; }
+
 RC lcd_set_y(LcdDisplay *lcd, usize pixels_tall) { return RC_OK; }
+
 RC lcd_set_x(LcdDisplay *lcd, usize pixels_wide) { return RC_OK; }
+
 RC lcd_writev(LcdDisplay *lcd, ChannelHandle hdl, double *values, usize sz) {
     return RC_OK;
 }
+
 RC lcd_write(LcdDisplay *lcd, ChannelHandle hdl, double value) { return RC_OK; }

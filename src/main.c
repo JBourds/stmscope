@@ -9,9 +9,10 @@
 #include "serial.h"
 #include "stm32f4xx_hal.h"
 
-#define SZ 1024
+#define SZ 16
 #define VOLTAGE_MAX 3.3
 #define ADC_MAX 4095.0
+#define WINDOW_SZ 16
 
 #define LED_PIN GPIO_PIN_5
 
@@ -90,14 +91,15 @@ int main(void) {
         handle_error();
     }
 
+    usize per_buffer_sz = SZ / 2;
     while (1) {
         toggle_led();
         if (STATE.dma_complete) {
             u64 sum = 0;
-            for (usize i = 0; i < SZ / 2; ++i) {
+            for (usize i = 0; i < per_buffer_sz; ++i) {
                 sum += STATE.buf[i];
             }
-            u16 avg = sum / SZ;
+            u16 avg = sum / per_buffer_sz;
             double avg_voltage = adc_to_voltage(avg);
             display_write(display, ch1_hdl, avg_voltage);
         } else {
