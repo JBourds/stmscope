@@ -6,6 +6,7 @@
 #define YAXIS_BAR "      *"
 #define START_COL sizeof(YAXIS_BAR)
 
+#define HIDE_CURSOR "\033[?25l"
 #define CLEAR_SCREEN "\033c"
 
 #define RESET "\033[0m"
@@ -298,7 +299,7 @@ RC terminal_open(TerminalDisplay *term, DisplayFile **file) {
 RC terminal_close(TerminalDisplay *term) { return RC_OK; }
 
 RC terminal_clear(TerminalDisplay *term) {
-    printf("\033c");
+    printf(CLEAR_SCREEN HIDE_CURSOR "");
     return RC_OK;
 }
 
@@ -307,7 +308,7 @@ RC terminal_draw_header(TerminalDisplay *term) {
     for (usize i = 0; i < term->nchannels; ++i) {
         Channel *ch = &term->channels[i];
         if (ch->active) {
-            printf("%s (%.5lf) %-25s", COLORS[i], ch->last_value, ch->name);
+            printf("%s(%.5lf) %-25s", COLORS[i], ch->last_value, ch->name);
         }
     }
     printf(RESET "\n");
