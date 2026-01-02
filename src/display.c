@@ -317,8 +317,8 @@ RC terminal_draw_header(TerminalDisplay *term) {
 RC terminal_draw_axis(TerminalDisplay *term) {
     usize xaxis_row = terminal_xaxis(term);
     usize last_row = term->chars_tall - 1;
-    for (usize row = 1; row < term->chars_tall; ++row) {
-        if (row == 1) {
+    for (usize row = term->reserved_rows; row < term->chars_tall; ++row) {
+        if (row == term->reserved_rows) {
             // top end label
             printf("%.3lfV\n", term->scale);
         } else if (row == last_row) {
@@ -365,15 +365,15 @@ RC terminal_remove_channel(TerminalDisplay *term, ChannelHandle hdl) {
 
 RC terminal_set_scale(TerminalDisplay *term, double scale) {
     term->scale = scale;
-    const usize reserved_rows = 1;
     // given a range of [-scale, scale] and one row reserved for the header,
     // determine how much of the signal each bin falls into
-    term->binwidth = (2.0 * scale) / (term->chars_tall - reserved_rows);
+    term->binwidth = (2.0 * scale) / (term->chars_tall - term->reserved_rows);
     return RC_OK;
 }
 
 RC terminal_set_y(TerminalDisplay *term, usize chars_tall) {
     term->chars_tall = chars_tall;
+    term->reserved_rows = term->chars_tall & 1 ? 2 : 1;
     return RC_OK;
 }
 
@@ -394,7 +394,7 @@ RC terminal_position_cursor(TerminalDisplay *term, usize row, usize col) {
 
 usize terminal_xaxis(TerminalDisplay *term) {
     // don't include header
-    return 1 + (term->chars_tall - 1) / 2;
+    return term->reserved_rows + (term->chars_tall - term->reserved_rows) / 2;
 }
 
 RC terminal_write(TerminalDisplay *term, ChannelHandle hdl, double value) {
@@ -411,8 +411,9 @@ RC terminal_write(TerminalDisplay *term, ChannelHandle hdl, double value) {
         clamped *= -1;
     }
     // (0,0) is top left
-    usize row_offset = round((clamped + clamped) / term->binwidth);
-    usize row = is_negative ? row_offset : term->chars_tall - row_offset + 1;
+    usize row_offset = round(clamped / term->binwidth);
+    usize xaxis_row = terminal_xaxis(term);
+    usize row = xaxis_row + (is_negative ? row_offset : -row_offset);
     terminal_position_cursor(term, row, term->col);
     printf("%s*", COLORS[hdl]);
     term->channels[hdl].last_value = value;

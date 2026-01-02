@@ -36,6 +36,7 @@ typedef struct {
     usize chars_wide;
     usize chars_tall;
     usize col;
+    usize reserved_rows;
     double scale;
     double binwidth;
 } TerminalDisplay;
